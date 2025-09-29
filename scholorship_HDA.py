@@ -48,6 +48,12 @@ load_dotenv()
 model = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash",
 )
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [
+        SystemMessage(content="You are a helpful assistant that helps users find scholarships based on their profile and preferences. Provide accurate and relevant scholarship recommendations worldwide, ensuring they match the user's academic level, field of study, and background.")
+    ]
+    
 st.title(" 🎓 SHOLORSHIP HUNTER")
 st.write("🎯 Find scholarships that match your profile and aspirations.Please note that it is focused only on non-medical scholarships 🌏 ")
 name=st.text_input("Enter your Full Name")
@@ -208,6 +214,28 @@ IMPORTANT RULES:
 
 if st.button("Find Scholarships"):
     with st.spinner("Finding Scholarships..."):
-        result = model.invoke(promt)
+        # append user message to history
+        st.session_state.chat_history.append(HumanMessage(content=prompt))
+
+        # invoke model with the message list (keeps context)
+        response = model.invoke(st.session_state.chat_history)
+
+        # get text safely (some models return different object shapes)
+        ai_text = getattr(response, "content", None) or str(response)
+
+        # append AI response to history
+        st.session_state.chat_history.append(AIMessage(content=ai_text))
+
+        # display result
         st.subheader("Recommended Scholarships")
-        st.write(result.content)
+        st.write(ai_text)
+
+# ---------------- Display chat history ----------------
+st.subheader("Chat History")
+for msg in st.session_state.chat_history:
+    if isinstance(msg, SystemMessage):
+        st.markdown(f"*System:* {msg.content}")
+    elif isinstance(msg, HumanMessage):
+        st.markdown(f"**You:** {msg.content}")
+    elif isinstance(msg, AIMessage):
+        st.markdown(f"**AI:** {msg.content}")
